@@ -116,9 +116,8 @@ document.addEventListener('DOMContentLoaded', function() {
     books.forEach(book => {
       const tr = document.createElement('tr');
       
-      // Crear enlace para leer si existe archivo PDF
       const leerLink = book.archivo_pdf 
-        ? `<a href="/uploads/${book.archivo_pdf}" target="_blank" class="btn btn-read">
+        ? `<a href="/pdf/${book.id}" target="_blank" class="btn btn-read">
              <i class="fas fa-book-reader"></i> Leer PDF
            </a>`
         : '<span class="no-pdf">No disponible</span>';

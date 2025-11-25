@@ -6,23 +6,8 @@ const fs = require('fs');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Asegurar que la carpeta uploads exista
-const uploadsDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
-
-// Configuración de multer para subir archivos PDF
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadsDir);
-  },
-  filename: function (req, file, cb) {
-    // Nombre único para evitar conflictos
-    const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1E9) + '-' + file.originalname;
-    cb(null, uniqueName);
-  }
-});
+// Uso de memoria temporal para archivos en Render
+const storage = multer.memoryStorage(); // Almacena en memoria en lugar de disco
 
 const upload = multer({ 
   storage: storage,
@@ -40,20 +25,28 @@ const upload = multer({
 
 // Middleware
 app.use(express.static(__dirname));
-app.use('/uploads', express.static(uploadsDir)); // Servir archivos subidos
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Rutas específicas para archivos estáticos 
+app.get('/style.css', (req, res) => {
+  res.sendFile(path.join(__dirname, 'style.css'));
+});
+
+app.get('/script.js', (req, res) => {
+  res.sendFile(path.join(__dirname, 'script.js'));
+});
+
 // Inicializar base de datos
 const dbPath = process.env.NODE_ENV === 'production' 
-  ? '/tmp/library.db'  // En Render usa /tmp para persistencia
+  ? '/tmp/library.db'  
   : './library.db';
 
-const db = new sqlite3.Database('./library.db', (err) => {
+const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
     console.error('Error al abrir la base de datos', err);
   } else {
-    console.log('Conectado a la base de datos SQLite.');
+    console.log('Conectado a la base de datos SQLite en:', dbPath);
     db.run(`CREATE TABLE IF NOT EXISTS libros (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       titulo TEXT NOT NULL,
@@ -61,29 +54,42 @@ const db = new sqlite3.Database('./library.db', (err) => {
       año INTEGER,
       genero TEXT,
       idioma TEXT,
-      archivo_pdf TEXT
+      archivo_pdf TEXT,
+      pdf_data BLOB 
     )`);
-  }
+  } // Archivar PDF en Base de Datos
 });
 
-// Ruta para servir el archivo CSS correctamente
-app.get('/style.css', (req, res) => {
-  res.sendFile(path.join(__dirname, 'style.css'));
+// Ruta para servir PDFs desde la base de datos
+app.get('/pdf/:id', (req, res) => {
+  const { id } = req.params;
+  
+  db.get('SELECT pdf_data FROM libros WHERE id = ?', [id], (err, row) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    
+    if (!row || !row.pdf_data) {
+      return res.status(404).send('PDF no encontrado');
+    }
+    
+    // Configurar headers para PDF
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename="document.pdf"');
+    
+    // Enviar el PDF almacenado en la base de datos
+    res.send(row.pdf_data);
+  });
 });
 
-// Ruta para servir el archivo JS correctamente
-app.get('/script.js', (req, res) => {
-  res.sendFile(path.join(__dirname, 'script.js'));
-});
-
-// API Routes
+// API Routes 
 app.get('/api/libros', (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
   const offset = (page - 1) * limit;
   const search = req.query.search || '';
 
-  let query = 'SELECT * FROM libros';
+  let query = 'SELECT id, titulo, autor, año, genero, idioma, archivo_pdf FROM libros';
   let countQuery = 'SELECT COUNT(*) as total FROM libros';
   let params = [];
 
@@ -120,7 +126,7 @@ app.get('/api/libros', (req, res) => {
 app.get('/api/libros/:id', (req, res) => {
   const { id } = req.params;
   
-  db.get('SELECT * FROM libros WHERE id = ?', [id], (err, row) => {
+  db.get('SELECT id, titulo, autor, año, genero, idioma, archivo_pdf FROM libros WHERE id = ?', [id], (err, row) => {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
@@ -133,20 +139,20 @@ app.get('/api/libros/:id', (req, res) => {
   });
 });
 
-// Agregar un nuevo libro 
+// Agregar un nuevo libro
 app.post('/api/libros', upload.single('archivo_pdf'), (req, res) => {
   const { titulo, autor, año, genero, idioma } = req.body;
-  const archivo_pdf = req.file ? req.file.filename : null;
+  
+  // Limpiar nombre de archivo (eliminar espacios)
+  const archivo_pdf = req.file ? req.file.originalname.replace(/\s+/g, '_') : null;
+  const pdf_data = req.file ? req.file.buffer : null; // Almacenar el buffer del archivo
 
   db.run(
-    'INSERT INTO libros (titulo, autor, año, genero, idioma, archivo_pdf) VALUES (?, ?, ?, ?, ?, ?)',
-    [titulo, autor, año, genero, idioma, archivo_pdf],
+    'INSERT INTO libros (titulo, autor, año, genero, idioma, archivo_pdf, pdf_data) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    [titulo, autor, año, genero, idioma, archivo_pdf, pdf_data],
     function(err) {
       if (err) {
-        // Si hay error, eliminar el archivo subido
-        if (req.file) {
-          fs.unlinkSync(path.join(uploadsDir, req.file.filename));
-        }
+        console.error('Error al insertar libro:', err);
         return res.status(500).json({ error: err.message });
       }
       res.json({ id: this.lastID });
@@ -154,85 +160,53 @@ app.post('/api/libros', upload.single('archivo_pdf'), (req, res) => {
   );
 });
 
-// Actualizar un libro
+// Actualizar un libro 
 app.put('/api/libros/:id', upload.single('archivo_pdf'), (req, res) => {
   const { id } = req.params;
   const { titulo, autor, año, genero, idioma } = req.body;
-  const archivo_pdf = req.file ? req.file.filename : null;
+  
+  // Limpiar nombre de archivo
+  const archivo_pdf = req.file ? req.file.originalname.replace(/\s+/g, '_') : null;
+  const pdf_data = req.file ? req.file.buffer : null;
 
-  // Obtener el libro actual para eliminar el archivo viejo si es necesario
-  db.get('SELECT archivo_pdf FROM libros WHERE id = ?', [id], (err, row) => {
+  let query = 'UPDATE libros SET titulo = ?, autor = ?, año = ?, genero = ?, idioma = ?';
+  let params = [titulo, autor, año, genero, idioma];
+
+  if (archivo_pdf && pdf_data) {
+    query += ', archivo_pdf = ?, pdf_data = ?';
+    params.push(archivo_pdf, pdf_data);
+  }
+
+  query += ' WHERE id = ?';
+  params.push(id);
+
+  db.run(query, params, function(err) {
     if (err) {
+      console.error('Error al actualizar libro:', err);
       return res.status(500).json({ error: err.message });
     }
-
-    let query = 'UPDATE libros SET titulo = ?, autor = ?, año = ?, genero = ?, idioma = ?';
-    let params = [titulo, autor, año, genero, idioma];
-
-    if (archivo_pdf) {
-      query += ', archivo_pdf = ?';
-      params.push(archivo_pdf);
-    }
-
-    query += ' WHERE id = ?';
-    params.push(id);
-
-    db.run(query, params, function(err) {
-      if (err) {
-        // Si hay error, eliminar el archivo nuevo subido
-        if (req.file) {
-          fs.unlinkSync(path.join(uploadsDir, req.file.filename));
-        }
-        return res.status(500).json({ error: err.message });
-      }
-      
-      // Eliminar el archivo viejo si se subió uno nuevo
-      if (archivo_pdf && row && row.archivo_pdf) {
-        const oldFilePath = path.join(uploadsDir, row.archivo_pdf);
-        if (fs.existsSync(oldFilePath)) {
-          fs.unlinkSync(oldFilePath);
-        }
-      }
-      
-      res.json({ changes: this.changes });
-    });
+    res.json({ changes: this.changes });
   });
 });
 
-// Eliminar un libro - TAMBIÉN ELIMINA EL ARCHIVO PDF
+// Eliminar un libro
 app.delete('/api/libros/:id', (req, res) => {
   const { id } = req.params;
   
-  // Obtener información del libro para eliminar el archivo
-  db.get('SELECT archivo_pdf FROM libros WHERE id = ?', [id], (err, row) => {
+  db.run('DELETE FROM libros WHERE id = ?', id, function(err) {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
-    
-    // Eliminar el archivo PDF si existe
-    if (row && row.archivo_pdf) {
-      const filePath = path.join(uploadsDir, row.archivo_pdf);
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
-    }
-    
-    // Eliminar el registro de la base de datos
-    db.run('DELETE FROM libros WHERE id = ?', id, function(err) {
-      if (err) {
-        return res.status(500).json({ error: err.message });
-      }
-      res.json({ deleted: this.changes });
-    });
+    res.json({ deleted: this.changes });
   });
 });
 
-// Servir la página principal
+// Ruta principal
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'index.html'));
 });
 
-// Manejo de errores de multer
+// Manejo de errores
 app.use((error, req, res, next) => {
   if (error instanceof multer.MulterError) {
     if (error.code === 'LIMIT_FILE_SIZE') {

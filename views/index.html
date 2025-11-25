@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Librería Pública - Catálogo de Libros</title>
+  <link rel="stylesheet" href="../style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Librería Pública</h1>
+      <p>Catálogo digital de libros disponibles</p>
+    </header>
+    
+    <main>
+      <section class="controls">
+        <div class="search-container">
+          <input type="text" id="search-input" placeholder="Buscar por título, autor, género o idioma...">
+        </div>
+        
+        <div class="actions-container">
+          <select id="limit-select" class="select-limit">
+            <option value="10">10 entradas</option>
+            <option value="15">15 entradas</option>
+            <option value="30">30 entradas</option>
+          </select>
+          
+          <button id="add-book-btn" class="btn btn-add">
+            <i class="fas fa-plus"></i> Agregar Libro
+          </button>
+        </div>
+      </section>
+      
+      <section class="table-container">
+        <table id="books-table">
+          <thead>
+            <tr>
+              <th>Título</th>
+              <th>Autor</th>
+              <th>Año</th>
+              <th>Género</th>
+              <th>Idioma</th>
+              <th>Leer</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Los libros se cargarán aquí dinámicamente -->
+          </tbody>
+        </table>
+      </section>
+      
+      <section class="pagination">
+        <button id="prev-page" disabled>
+          <i class="fas fa-chevron-left"></i> Anterior
+        </button>
+        <span id="pagination-info">Página 1 de 1</span>
+        <button id="next-page" disabled>
+          Siguiente <i class="fas fa-chevron-right"></i>
+        </button>
+      </section>
+      
+      <section class="carousel-section">
+        <h2>Libros Recomendados</h2>
+        <div class="carousel-container">
+          <div class="carousel">
+            <div class="carousel-item">
+              <iframe src="https://www.youtube.com/embed/zxuVYw2uaE0?si=73VG2WLZxx9l4QTo" allowfullscreen></iframe>
+            </div>
+            <div class="carousel-item">
+              <iframe src="https://www.youtube.com/embed/VEU82NLz4ZU?si=6jA5ktP3GRigxTys" allowfullscreen></iframe>
+            </div>
+            <div class="carousel-item">
+              <iframe src="https://www.youtube.com/embed/cNnsByS7BcQ?si=OEDnhhza1__wte9r" allowfullscreen></iframe>
+            </div>
+          </div>
+          <button class="carousel-btn carousel-prev">
+            <i class="fas fa-chevron-left"></i>
+          </button>
+          <button class="carousel-btn carousel-next">
+            <i class="fas fa-chevron-right"></i>
+          </button>
+        </div>
+      </section>
+    </main>
+  </div>
+  
+  <!-- Modal para agregar/editar libros -->
+  <div id="book-modal" class="modal">
+    <div class="modal-content">
+      <h2 id="modal-title">Agregar Nuevo Libro</h2>
+      <form id="book-form" enctype="multipart/form-data">
+        <div class="form-group">
+          <label for="titulo">Título</label>
+          <input type="text" id="titulo" name="titulo" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="autor">Autor</label>
+          <input type="text" id="autor" name="autor" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="año">Año</label>
+          <input type="number" id="año" name="año" min="1000" max="2023" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="genero">Género</label>
+          <select id="genero" name="genero" required>
+            <option value="">Seleccione un género</option>
+            <option value="Ciencia Ficción">Ciencia Ficción</option>
+            <option value="Fantasía">Fantasía</option>
+            <option value="Misterio">Misterio</option>
+            <option value="Romance">Romance</option>
+            <option value="Terror">Terror</option>
+            <option value="Biografía">Biografía</option>
+            <option value="Historia">Historia</option>
+            <option value="Ciencia">Ciencia</option>
+            <option value="Autoayuda">Autoayuda</option>
+            <option value="Poesía">Poesía</option>
+            <option value="Drama">Drama</option>
+            <option value="Aventura">Aventura</option>
+            <option value="Infantil">Infantil</option>
+            <option value="Juvenil">Juvenil</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="idioma">Idioma</label>
+          <select id="idioma" name="idioma">
+            <option value="">Seleccione un idioma</option>
+            <option value="Español">Español</option>
+            <option value="Inglés">Inglés</option>
+            <option value="Francés">Francés</option>
+            <option value="Alemán">Alemán</option>
+            <option value="Italiano">Italiano</option>
+            <option value="Portugués">Portugués</option>
+            <option value="Chino">Chino</option>
+            <option value="Japonés">Japonés</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="archivo_pdf">Archivo PDF</label>
+          <input type="file" id="archivo_pdf" name="archivo_pdf" accept=".pdf">
+        </div>
+        
+        <div class="form-actions">
+          <button type="button" id="cancel-btn" class="btn btn-cancel">Cancelar</button>
+          <button type="submit" class="btn btn-submit">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+  <script src="../script.js"></script>
+</body>
+</html>

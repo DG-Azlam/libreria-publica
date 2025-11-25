@@ -116,10 +116,16 @@ document.addEventListener('DOMContentLoaded', function() {
     books.forEach(book => {
       const tr = document.createElement('tr');
       
-      const leerLink = book.archivo_pdf 
-        ? `<a href="/pdf/${book.id}" target="_blank" class="btn btn-read">
-             <i class="fas fa-book-reader"></i> Leer PDF
-           </a>`
+      // Enlaces para descargar y ver PDF
+      const leerLink = book.archivo_nombre 
+        ? `<div class="pdf-actions">
+            <a href="/ver-pdf/${book.id}" target="_blank" class="btn btn-view">
+              <i class="fas fa-eye"></i> Ver
+            </a>
+            <a href="/descargar-pdf/${book.id}" class="btn btn-download">
+              <i class="fas fa-download"></i> Descargar
+            </a>
+           </div>`
         : '<span class="no-pdf">No disponible</span>';
       
       tr.innerHTML = `

@@ -2,12 +2,11 @@ const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Uso de memoria temporal para archivos en Render
-const storage = multer.memoryStorage(); // Almacena en memoria en lugar de disco
+// Configuración de multer para memoria
+const storage = multer.memoryStorage();
 
 const upload = multer({ 
   storage: storage,
@@ -19,7 +18,7 @@ const upload = multer({
     }
   },
   limits: {
-    fileSize: 10 * 1024 * 1024 // Límite de 10MB
+    fileSize: 10 * 1024 * 1024 // 10MB
   }
 });
 
@@ -28,7 +27,7 @@ app.use(express.static(__dirname));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Rutas específicas para archivos estáticos 
+// Rutas específicas para archivos estáticos
 app.get('/style.css', (req, res) => {
   res.sendFile(path.join(__dirname, 'style.css'));
 });
@@ -39,7 +38,7 @@ app.get('/script.js', (req, res) => {
 
 // Inicializar base de datos
 const dbPath = process.env.NODE_ENV === 'production' 
-  ? '/tmp/library.db'  
+  ? '/tmp/library.db'
   : './library.db';
 
 const db = new sqlite3.Database(dbPath, (err) => {
@@ -54,42 +53,69 @@ const db = new sqlite3.Database(dbPath, (err) => {
       año INTEGER,
       genero TEXT,
       idioma TEXT,
-      archivo_pdf TEXT,
-      pdf_data BLOB 
+      archivo_nombre TEXT,
+      pdf_data BLOB,
+      pdf_tipo TEXT
     )`);
-  } // Archivar PDF en Base de Datos
+  }
 });
 
-// Ruta para servir PDFs desde la base de datos
-app.get('/pdf/:id', (req, res) => {
+// Ruta para descargar PDF desde la base de datos
+app.get('/descargar-pdf/:id', (req, res) => {
   const { id } = req.params;
   
-  db.get('SELECT pdf_data FROM libros WHERE id = ?', [id], (err, row) => {
+  db.get('SELECT archivo_nombre, pdf_data, pdf_tipo FROM libros WHERE id = ?', [id], (err, row) => {
     if (err) {
-      return res.status(500).json({ error: err.message });
+      console.error('Error al obtener PDF:', err);
+      return res.status(500).send('Error del servidor');
     }
     
     if (!row || !row.pdf_data) {
       return res.status(404).send('PDF no encontrado');
     }
     
-    // Configurar headers para PDF
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'inline; filename="document.pdf"');
+    // Configurar headers para descarga de PDF
+    res.setHeader('Content-Type', row.pdf_tipo || 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${row.archivo_nombre || 'documento.pdf'}"`);
+    res.setHeader('Content-Length', row.pdf_data.length);
     
-    // Enviar el PDF almacenado en la base de datos
+    // Enviar el PDF
     res.send(row.pdf_data);
   });
 });
 
-// API Routes 
+// Ruta para ver en PDF en el navegador
+app.get('/ver-pdf/:id', (req, res) => {
+  const { id } = req.params;
+  
+  db.get('SELECT archivo_nombre, pdf_data, pdf_tipo FROM libros WHERE id = ?', [id], (err, row) => {
+    if (err) {
+      console.error('Error al obtener PDF:', err);
+      return res.status(500).send('Error del servidor');
+    }
+    
+    if (!row || !row.pdf_data) {
+      return res.status(404).send('PDF no encontrado');
+    }
+    
+    // Configurar headers para visualización en el navegador
+    res.setHeader('Content-Type', row.pdf_tipo || 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${row.archivo_nombre || 'documento.pdf'}"`);
+    res.setHeader('Content-Length', row.pdf_data.length);
+    
+    // Enviar el PDF
+    res.send(row.pdf_data);
+  });
+});
+
+// API Routes
 app.get('/api/libros', (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
   const offset = (page - 1) * limit;
   const search = req.query.search || '';
 
-  let query = 'SELECT id, titulo, autor, año, genero, idioma, archivo_pdf FROM libros';
+  let query = 'SELECT id, titulo, autor, año, genero, idioma, archivo_nombre FROM libros';
   let countQuery = 'SELECT COUNT(*) as total FROM libros';
   let params = [];
 
@@ -126,7 +152,7 @@ app.get('/api/libros', (req, res) => {
 app.get('/api/libros/:id', (req, res) => {
   const { id } = req.params;
   
-  db.get('SELECT id, titulo, autor, año, genero, idioma, archivo_pdf FROM libros WHERE id = ?', [id], (err, row) => {
+  db.get('SELECT id, titulo, autor, año, genero, idioma, archivo_nombre FROM libros WHERE id = ?', [id], (err, row) => {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
@@ -139,17 +165,23 @@ app.get('/api/libros/:id', (req, res) => {
   });
 });
 
-// Agregar un nuevo libro
+// Agregar un nuevo libro 
 app.post('/api/libros', upload.single('archivo_pdf'), (req, res) => {
   const { titulo, autor, año, genero, idioma } = req.body;
   
-  // Limpiar nombre de archivo (eliminar espacios)
-  const archivo_pdf = req.file ? req.file.originalname.replace(/\s+/g, '_') : null;
-  const pdf_data = req.file ? req.file.buffer : null; // Almacenar el buffer del archivo
+  let archivo_nombre = null;
+  let pdf_data = null;
+  let pdf_tipo = null;
+
+  if (req.file) {
+    archivo_nombre = req.file.originalname;
+    pdf_data = req.file.buffer; // Buffer del archivo
+    pdf_tipo = req.file.mimetype;
+  }
 
   db.run(
-    'INSERT INTO libros (titulo, autor, año, genero, idioma, archivo_pdf, pdf_data) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    [titulo, autor, año, genero, idioma, archivo_pdf, pdf_data],
+    'INSERT INTO libros (titulo, autor, año, genero, idioma, archivo_nombre, pdf_data, pdf_tipo) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    [titulo, autor, año, genero, idioma, archivo_nombre, pdf_data, pdf_tipo],
     function(err) {
       if (err) {
         console.error('Error al insertar libro:', err);
@@ -160,32 +192,38 @@ app.post('/api/libros', upload.single('archivo_pdf'), (req, res) => {
   );
 });
 
-// Actualizar un libro 
+// Actualizar un libro
 app.put('/api/libros/:id', upload.single('archivo_pdf'), (req, res) => {
   const { id } = req.params;
   const { titulo, autor, año, genero, idioma } = req.body;
   
-  // Limpiar nombre de archivo
-  const archivo_pdf = req.file ? req.file.originalname.replace(/\s+/g, '_') : null;
-  const pdf_data = req.file ? req.file.buffer : null;
-
-  let query = 'UPDATE libros SET titulo = ?, autor = ?, año = ?, genero = ?, idioma = ?';
-  let params = [titulo, autor, año, genero, idioma];
-
-  if (archivo_pdf && pdf_data) {
-    query += ', archivo_pdf = ?, pdf_data = ?';
-    params.push(archivo_pdf, pdf_data);
-  }
-
-  query += ' WHERE id = ?';
-  params.push(id);
-
-  db.run(query, params, function(err) {
+  // Obtenención del libro actual
+  db.get('SELECT * FROM libros WHERE id = ?', [id], (err, row) => {
     if (err) {
-      console.error('Error al actualizar libro:', err);
       return res.status(500).json({ error: err.message });
     }
-    res.json({ changes: this.changes });
+
+    let archivo_nombre = row.archivo_nombre;
+    let pdf_data = row.pdf_data;
+    let pdf_tipo = row.pdf_tipo;
+
+    // Si se subió un nuevo archivo, actualizar
+    if (req.file) {
+      archivo_nombre = req.file.originalname;
+      pdf_data = req.file.buffer;
+      pdf_tipo = req.file.mimetype;
+    }
+
+    const query = 'UPDATE libros SET titulo = ?, autor = ?, año = ?, genero = ?, idioma = ?, archivo_nombre = ?, pdf_data = ?, pdf_tipo = ? WHERE id = ?';
+    const params = [titulo, autor, año, genero, idioma, archivo_nombre, pdf_data, pdf_tipo, id];
+
+    db.run(query, params, function(err) {
+      if (err) {
+        console.error('Error al actualizar libro:', err);
+        return res.status(500).json({ error: err.message });
+      }
+      res.json({ changes: this.changes });
+    });
   });
 });
 

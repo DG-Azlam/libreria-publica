@@ -370,6 +370,49 @@ tr:hover {
   margin-top: 5px;
 }
 
+.pdf-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn-view {
+  background-color: #27ae60;
+  color: white;
+  padding: 5px 10px;
+  font-size: 0.8rem;
+  text-decoration: none;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-view:hover {
+  background-color: #219653;
+}
+
+.btn-download {
+  background-color: #3498db;
+  color: white;
+  padding: 5px 10px;
+  font-size: 0.8rem;
+  text-decoration: none;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-download:hover {
+  background-color: #2980b9;
+}
+
+.no-pdf {
+  color: #95a5a6;
+  font-style: italic;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .controls {
@@ -400,6 +443,15 @@ tr:hover {
     width: 30px;
     height: 30px;
     font-size: 1rem;
+  }
+
+  .pdf-actions {
+    flex-direction: column;
+  }
+  
+  .btn-view, .btn-download {
+    font-size: 0.7rem;
+    padding: 4px 8px;
   }
 }
 

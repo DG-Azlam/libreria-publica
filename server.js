@@ -45,6 +45,10 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Inicializar base de datos
+const dbPath = process.env.NODE_ENV === 'production' 
+  ? '/tmp/library.db'  // En Render usa /tmp para persistencia
+  : './library.db';
+
 const db = new sqlite3.Database('./library.db', (err) => {
   if (err) {
     console.error('Error al abrir la base de datos', err);
@@ -239,6 +243,7 @@ app.use((error, req, res, next) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Servidor ejecutándose en http://localhost:${PORT}`);
-  console.log(`Carpeta de uploads: ${uploadsDir}`);
+  console.log(`Servidor ejecutándose en puerto ${PORT}`);
+  console.log(`Entorno: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`Base de datos: ${dbPath}`);
 });

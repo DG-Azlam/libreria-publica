@@ -132,7 +132,7 @@ app.get('/api/libros', async (req, res) => {
     if (search) {
       query += ' WHERE titulo ILIKE $1 OR autor ILIKE $2 OR genero ILIKE $3 OR idioma ILIKE $4';
       countQuery += ' WHERE titulo ILIKE $1 OR autor ILIKE $2 OR genero ILIKE $3 OR idioma ILIKE $4';
-      params = [%${search}%, %${search}%, %${search}%, %${search}%];
+      params = [`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`];
       paramCount = 4;
     }
 
@@ -279,6 +279,6 @@ app.use((error, req, res, next) => {
 });
 
 app.listen(PORT, () => {
-  console.log(Servidor ejecutándose en puerto ${PORT});
-  console.log(Entorno: ${process.env.NODE_ENV || 'development'});
+  console.log(`Servidor ejecutándose en puerto ${PORT}`);
+  console.log(`Entorno: ${process.env.NODE_ENV || 'development'}`);
 });

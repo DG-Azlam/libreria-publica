@@ -66,7 +66,7 @@ async function initializeDatabase() {
 
 initializeDatabase();
 
-// Ruta para descargar PDF
+// Ruta para descargar PDF 
 app.get('/descargar-pdf/:id', async (req, res) => {
   const { id } = req.params;
   
@@ -91,7 +91,7 @@ app.get('/descargar-pdf/:id', async (req, res) => {
   }
 });
 
-// Ruta para ver PDF
+// Ruta para ver PDF 
 app.get('/ver-pdf/:id', async (req, res) => {
   const { id } = req.params;
   
@@ -249,6 +249,20 @@ app.delete('/api/libros/:id', async (req, res) => {
   }
 });
 
+// Ruta de prueba para verificar conexión a BD
+app.get('/test-db', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT NOW() as current_time');
+    res.json({ 
+      message: 'Conexión a PostgreSQL exitosa',
+      currentTime: result.rows[0].current_time,
+      database: process.env.DATABASE_URL ? 'Configurada' : 'No configurada'
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Ruta principal
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'index.html'));
@@ -267,9 +281,4 @@ app.use((error, req, res, next) => {
 app.listen(PORT, () => {
   console.log(Servidor ejecutándose en puerto ${PORT});
   console.log(Entorno: ${process.env.NODE_ENV || 'development'});
-});
-app.listen(PORT, () => {
-  console.log(`Servidor ejecutándose en puerto ${PORT}`);
-  console.log(`Entorno: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`Base de datos: ${dbPath}`);
 });

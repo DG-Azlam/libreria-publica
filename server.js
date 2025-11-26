@@ -83,7 +83,7 @@ app.get('/descargar-pdf/:id', async (req, res) => {
     const row = result.rows[0];
     
     res.setHeader('Content-Type', row.pdf_tipo || 'application/pdf');
-    res.setHeader('Content-Disposition', 'attachment; filename="${row.archivo_nombre || 'documento.pdf'}"');
+    res.setHeader('Content-Disposition', `attachment; filename="${row.archivo_nombre || 'documento.pdf'}"`);
     res.send(row.pdf_data);
   } catch (err) {
     console.error('Error al obtener PDF:', err);
@@ -108,7 +108,7 @@ app.get('/ver-pdf/:id', async (req, res) => {
     const row = result.rows[0];
     
     res.setHeader('Content-Type', row.pdf_tipo || 'application/pdf');
-    res.setHeader('Content-Disposition', 'inline; filename="${row.archivo_nombre || 'documento.pdf'}"');
+    res.setHeader('Content-Disposition', `inline; filename="${row.archivo_nombre || 'documento.pdf'}"`);
     res.send(row.pdf_data);
   } catch (err) {
     console.error('Error al obtener PDF:', err);
